@@ -25,22 +25,19 @@ from scraper import SheetWriter
 #from test_meta import opgg_lp
 import random
 import asyncio
-from scraper import RiotScraper, SheetWriter
+from scraper import RiotScraper, SheetWriter, JSONUpdater
+import time 
+from keep_alive import keep_alive
+
 
 riot_api_scraper = RiotScraper()
 writer = SheetWriter(sheet_name="Arena Tracker")
+reader = JSONUpdater()
 
-# [riot_game_name, tagline, sheet_column_label]  — players[0] is the "primary"
-ARENA_PLAYERS = [
-    ['Zeegyboogydoog', 'NA1',  'Zeegy'],
-    ['Anthotron713',   'NA1',  'Anthotron'],
-    ['iLuvNewjeans',   '6884', 'iLuvNewjeans'],
-]
-discord.utils.setup_logging(level=logging.INFO, root=False)
-person = 'haerin'
-lp = 1
-CommandKey = '!'
+
 load_dotenv()
+keep_alive()
+
 intents = discord.Intents.all()
 intents.message_content = True
 client = discord.Client(intents=discord.Intents.default())
@@ -51,6 +48,16 @@ token = os.getenv("DISCORD_TOKEN")
 owner = os.getenv("OWNER_ID")
 GIF_FOLDER = os.getenv("GIF_FOLDER")
 TENOR_API_KEY = os.getenv("TENOR_API_KEY")
+
+ARENA_PLAYERS = [
+    ['Zeegyboogydoog', 'NA1',  'Zeegy'],
+    ['Anthotron713',   'NA1',  'Anthotron'],
+    ['iLuvNewjeans',   '6884', 'iLuvNewjeans'],
+]
+discord.utils.setup_logging(level=logging.INFO, root=False)
+person = 'haerin'
+lp = 1
+CommandKey = '!'
 
 async def load_extensions():
     cogs_dir = "./cogs"
@@ -145,7 +152,7 @@ def get_gif(searchTerm):
     return "No GIF found!"
 
 #Riot API Scraper Section
-
+    
 
 
 @bot.event
@@ -154,24 +161,53 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
-    if message.content.startswith("$Update"):
+    if message.content.startswith("$updatein"):
+        contents = message.content.split()
+        num_mins = int(contents[1])
+        await message.channel.send(f"Will update in {num_mins} mins")
+        time.sleep(num_mins * 60)
+        await message.channel.send("Attempting to Update")
         results, match_id = await asyncio.to_thread(riot_api_scraper.scrape_shared_game, ARENA_PLAYERS)
+        
 
         if match_id is None:
             await message.channel.send("No recent Arena game found.")
         elif results is None:
             await message.channel.send("Latest Arena game already recorded — nothing new.")
         else:
+            output = reader.call(results['Zeegy'][1], results['Anthotron'][1] ,  results['iLuvNewjeans'][1])
+            await message.channel.send("Updated\n")
+            await message.channel.send(f"{output}")
+            game_num = await asyncio.to_thread(writer.next_game_number)
+            await asyncio.to_thread(writer.add_game, game_num, results)
+            riot_api_scraper.mark_recorded(match_id)   
+    if message.content.startswith("$status"):
+        await message.channel.send(reader.status())
+
+    if message.content.lower() == ("$update"):
+        await message.channel.send('hit')
+        results, match_id = await asyncio.to_thread(riot_api_scraper.scrape_shared_game, ARENA_PLAYERS)
+        
+
+        if match_id is None:
+            await message.channel.send("No recent Arena game found.")
+        elif results is None:
+            await message.channel.send("Latest Arena game already recorded — nothing new.")
+        else:
+            output = reader.call(results['Zeegy'][1], results['Anthotron'][1] ,  results['iLuvNewjeans'][1])
+            await message.channel.send("Updated\n")
+            await message.channel.send(f"{output}")
             game_num = await asyncio.to_thread(writer.next_game_number)
             await asyncio.to_thread(writer.add_game, game_num, results)
             riot_api_scraper.mark_recorded(match_id)   
             found = ", ".join(results)
 
             
-            print(results['Zeegy'][0])
+            # print(results['Zeegy'][0])
 
             
-            await message.channel.send(f"Recorded Arena game #{game_num} ({found}) ✅")
+            # await message.channel.send(f"Recorded Arena game #{game_num} ({found}) ✅")
+# [riot_game_name, tagline, sheet_column_label]  — players[0] is the "primary"
     if message.content.startswith("!"):
         searchTerm = message.content[1:]  # Remove the "!" to get the search term... ow for a ot that deteries if it is a guy or girl. 
         gif_url = get_gif(searchTerm)

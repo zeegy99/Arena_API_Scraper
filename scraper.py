@@ -8,7 +8,37 @@ import gspread
 
 import gspread
 
+class JSONUpdater:
+    def __init__(self):
+        self.path = "dmg_total.json"
+    
+    def status(self):
+        with open(self.path, 'r') as file:
+            data = json.load(file)
 
+            return f"Total Dmg Tracker Across {data['num_games']} games\n Anthotron: {data['Anthotron']}\n Jeans: {data['iLuvNewjeans']}\n Zeegy: {data['Zeegy']}"
+    def read_file(self):
+        with open(self.path, 'r') as file:
+            data = json.load(file)
+            # print(data)
+            return (data)
+        
+    def update_json(self, zeegy_dmg, anthotron_dmg, jeans_dmg):
+        data = self.read_file()
+
+        data['Anthotron'] += anthotron_dmg
+        data['iLuvNewjeans'] += jeans_dmg
+        data['Zeegy'] += zeegy_dmg
+        data['num_games'] += 1
+
+        with open(self.path, 'w', encoding="utf-8") as file:
+            json.dump(data, file, indent=4)
+
+    def call(self, zeegy_dmg, anthotron_dmg, jeans_dmg):
+        self.update_json(zeegy_dmg, anthotron_dmg, jeans_dmg)
+        data = self.read_file()
+
+        return f"Total Dmg Tracker Across {data['num_games']} games\n Anthotron: {data['Anthotron']}\n Jeans: {data['iLuvNewjeans']}\n Zeegy: {data['Zeegy']}"
 class SheetWriter:
     def __init__(self, sheet_name="Arena Tracker"):
         self.gc = gspread.oauth()                       # creds in AppData\Roaming\gspread
@@ -102,7 +132,7 @@ class RiotScraper:
                f"/lol/match/v5/matches/{match_id}?api_key={self.API_KEY}")
         return requests.get(url).json()['info']
 
-    # --- dedup state ---
+    # 
     def last_recorded_match(self, path='prev_game.json'):
         try:
             with open(path) as f:
@@ -152,12 +182,17 @@ if __name__ == '__main__':
     if 1:
         scraper = RiotScraper()
         writer = SheetWriter(sheet_name="Arena Tracker")
-        writer.add_game(1, {
-            "Anthotron":    ("Another Champ -1",  5),
-            "iLuvNewjeans": ("Another Champ -2", 11),
-            "Zeegy":        ("Another Champ -3",   22),
-        })
-        print("wrote game 1 — check your Drive for 'Arena Tracker'")
+        reader = JSONUpdater()
+        
+        print(reader.call(1000, 2000, 3000))
+     
+
+        # writer.add_game(1, {
+        #     "Anthotron":    ("Another Champ -1",  5),
+        #     "iLuvNewjeans": ("Another Champ -2", 11),
+        #     "Zeegy":        ("Another Champ -3",   22),
+        # })
+        # print("wrote game 1 — check your Drive for 'Arena Tracker'")
    
         # arena_players = [['Zeegyboogydoog', 'NA1'], ['Anthotron713', 'NA1'], ['iLuvNewjeans', '6884']]
         # for player in arena_players:
