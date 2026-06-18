@@ -41,7 +41,12 @@ class JSONUpdater:
         return f"Total Dmg Tracker Across {data['num_games']} games\n Anthotron: {data['Anthotron']}\n Jeans: {data['iLuvNewjeans']}\n Zeegy: {data['Zeegy']}"
 class SheetWriter:
     def __init__(self, sheet_name="Arena Tracker"):
-        self.gc = gspread.oauth()                       # creds in AppData\Roaming\gspread
+        creds = json.loads(os.environ["GSPREAD_CREDENTIALS"])
+        authorized_user = json.loads(os.environ["GSPREAD_AUTHORIZED_USER"])
+        self.gc, _ = gspread.oauth_from_dict(
+            credentials=creds,
+            authorized_user_info=authorized_user,
+        )
         self.players = ["Anthotron", "iLuvNewjeans", "Zeegy"]   # column order
         self.players_second = ['']
         try:
@@ -51,7 +56,6 @@ class SheetWriter:
             self._write_header()
 
         self.ws = self.sh.sheet1
-
     def _write_header(self):
         header = ["Game", ""] + self.players
         self.sh.sheet1.update([header], "A1")           # values first, range second (gspread 6.x)
